@@ -3,10 +3,11 @@ package com.idealista.infrastructure.api;
 import java.util.List;
 
 import com.idealista.application.AdsService;
+import com.idealista.infrastructure.api.dto.PublicAd;
+import com.idealista.infrastructure.api.dto.QualityAd;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 public class AdsController {
@@ -16,17 +17,18 @@ public class AdsController {
 
     @GetMapping("/ads/quality")
     public ResponseEntity<List<QualityAd>> qualityListing() {
-        return ResponseEntity.ok(adsService.findQualityAds());
+        return ResponseEntity.ok(adsService.findIrrelevantAds());
     }
 
     @GetMapping("/ads/public")
     public ResponseEntity<List<PublicAd>> publicListing() {
-        return ResponseEntity.ok(adsService.findPublicAds());
+        return ResponseEntity.ok(adsService.findRelevantAds());
     }
 
-    @GetMapping("/ads/score")
-    public ResponseEntity<Void> calculateScore() {
-        adsService.calculateScores();
-        return ResponseEntity.accepted().build();
+    @PutMapping("ads/{id}/score")
+    public ResponseEntity<Void> updateScore(@PathVariable Integer id, @RequestBody PublicAd updateRequest) {
+        adsService.updateAdAndCalculateScore(id, updateRequest);
+        return ResponseEntity.ok().build();
+
     }
 }

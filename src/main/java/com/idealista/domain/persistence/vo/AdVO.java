@@ -1,4 +1,4 @@
-package com.idealista.infrastructure.persistence;
+package com.idealista.domain.persistence.vo;
 
 import java.util.Date;
 import java.util.List;

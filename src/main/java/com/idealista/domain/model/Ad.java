@@ -1,4 +1,6 @@
-package com.idealista.domain;
+package com.idealista.domain.model;
+
+import com.idealista.application.constants.Typology;
 
 import java.util.Date;
 import java.util.List;

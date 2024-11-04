@@ -1,12 +1,16 @@
-package com.idealista.infrastructure.persistence;
+package com.idealista.domain.persistence;
 
+import com.idealista.application.constants.Constants;
+import com.idealista.application.constants.Quality;
+import com.idealista.application.constants.Typology;
 import com.idealista.domain.*;
+import com.idealista.domain.model.Ad;
+import com.idealista.domain.model.Picture;
+import com.idealista.domain.persistence.vo.AdVO;
+import com.idealista.domain.persistence.vo.PictureVO;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Repository
@@ -70,11 +74,18 @@ public class InMemoryPersistence implements AdRepository {
 
     @Override
     public List<Ad> findIrrelevantAds() {
-        return ads
-                .stream()
-                .filter(x -> x.getScore() < Constants.FORTY)
+        return ads.parallelStream() // Cambia a un flujo paralelo
+                .filter(ad -> ad.getScore() < Constants.FORTY)
                 .map(this::mapToDomain)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<Ad> findById(Integer id) {
+        return ads
+                .stream()
+                .filter(x ->x.getId().equals(id))
+                .map(this::mapToDomain).findFirst();
     }
 
     private Ad mapToDomain(AdVO adVO) {

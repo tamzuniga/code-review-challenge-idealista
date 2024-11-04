@@ -1,43 +1,42 @@
 package com.idealista.application;
 
+import com.idealista.application.calculator.ScoreCalculator;
+import com.idealista.application.mapper.Mapper;
 import com.idealista.domain.*;
-import com.idealista.infrastructure.api.PublicAd;
-import com.idealista.infrastructure.api.QualityAd;
+import com.idealista.domain.model.Ad;
+import com.idealista.domain.model.Picture;
+import com.idealista.infrastructure.api.dto.PublicAd;
+import com.idealista.infrastructure.api.dto.QualityAd;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class AdsServiceImpl implements AdsService {
+    @Autowired
+    private ScoreCalculator scoreCalculator;
 
     @Autowired
     private AdRepository adRepository;
+    @Autowired
+    private Mapper mapper;
 
     @Override
-    public List<PublicAd> findPublicAds() {
+    public List<PublicAd> findRelevantAds() {
         List<Ad> ads = adRepository.findRelevantAds();
-        ads.sort(Comparator.comparing(Ad::getScore));
-
-        List<PublicAd> result = new ArrayList<>();
-        for (Ad ad: ads) {
-            PublicAd publicAd = new PublicAd();
-            publicAd.setDescription(ad.getDescription());
-            publicAd.setGardenSize(ad.getGardenSize());
-            publicAd.setHouseSize(ad.getHouseSize());
-            publicAd.setId(ad.getId());
-            publicAd.setPictureUrls(ad.getPictures().stream().map(Picture::getUrl).collect(Collectors.toList()));
-            publicAd.setTypology(ad.getTypology().name());
-
-            result.add(publicAd);
-        }
-        return result;
+        return mapper.mapAdd(ads);
     }
 
     @Override
-    public List<QualityAd> findQualityAds() {
+    public List<QualityAd> findIrrelevantAds() {
         List<Ad> ads = adRepository.findIrrelevantAds();
+        if (ads.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No irrelevant ads found");
+        }
 
         List<QualityAd> result = new ArrayList<>();
         for (Ad ad: ads) {
@@ -58,85 +57,19 @@ public class AdsServiceImpl implements AdsService {
     }
 
     @Override
-    public void calculateScores() {
-        adRepository
-                .findAllAds()
-                .forEach(this::calculateScore);
+    public void updateAdAndCalculateScore(Integer id, PublicAd updateRequest) {
+        Optional<Ad> optionalAd = adRepository.findById(id);
+
+        if (optionalAd.isPresent()) {
+            Ad ad = optionalAd.get();
+            if (updateRequest.getDescription() != null) {
+                ad.setDescription(updateRequest.getDescription());
+            }
+
+            //Y otros parámetros que hagan falta actualizar.
+            scoreCalculator.calculateScore(ad);
+            adRepository.save(ad);
+        }
+
     }
-
-    private void calculateScore(Ad ad) {
-        int score = Constants.ZERO;
-
-        //Calcular puntuación por fotos
-        if (ad.getPictures().isEmpty()) {
-            score -= Constants.TEN; //Si no hay fotos restamos 10 puntos
-        } else {
-            for (Picture picture: ad.getPictures()) {
-                if(Quality.HD.equals(picture.getQuality())) {
-                    score += Constants.TWENTY; //Cada foto en alta definición aporta 20 puntos
-                } else {
-                    score += Constants.TEN; //Cada foto normal aporta 10 puntos
-                }
-            }
-        }
-
-        //Calcular puntuación por descripción
-        Optional<String> optDesc = Optional.ofNullable(ad.getDescription());
-
-        if (optDesc.isPresent()) {
-            String description = optDesc.get();
-
-            if (!description.isEmpty()) {
-                score += Constants.FIVE;
-            }
-
-            List<String> wds = Arrays.asList(description.split(" ")); //número de palabras
-            if (Typology.FLAT.equals(ad.getTypology())) {
-                if (wds.size() >= Constants.TWENTY && wds.size() <= Constants.FORTY_NINE) {
-                   score += Constants.TEN;
-                }
-
-                if (wds.size() >= Constants.FIFTY) {
-                    score += Constants.THIRTY;
-                }
-            }
-
-            if (Typology.CHALET.equals(ad.getTypology())) {
-                if (wds.size() >= Constants.FIFTY) {
-                    score += Constants.TWENTY;
-                }
-            }
-
-            if (wds.contains("luminoso")) score += Constants.FIVE;
-            if (wds.contains("nuevo")) score += Constants.FIVE;
-            if (wds.contains("céntrico")) score += Constants.FIVE;
-            if (wds.contains("reformado")) score += Constants.FIVE;
-            if (wds.contains("ático")) score += Constants.FIVE;
-        }
-
-        //Calcular puntuación por completitud
-        if (ad.isComplete()) {
-            score = Constants.FORTY;
-        }
-
-        ad.setScore(score);
-
-        if (ad.getScore() < Constants.ZERO) {
-            ad.setScore(Constants.ZERO);
-        }
-
-        if (ad.getScore() > Constants.ONE_HUNDRED) {
-            ad.setScore(Constants.ONE_HUNDRED);
-        }
-
-        if (ad.getScore() < Constants.FORTY) {
-            ad.setIrrelevantSince(new Date());
-        } else {
-            ad.setIrrelevantSince(null);
-        }
-
-        adRepository.save(ad);
-    }
-
-
 }

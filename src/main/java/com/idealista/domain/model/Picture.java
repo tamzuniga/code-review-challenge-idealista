@@ -1,4 +1,6 @@
-package com.idealista.domain;
+package com.idealista.domain.model;
+
+import com.idealista.application.constants.Quality;
 
 import java.util.Objects;
 

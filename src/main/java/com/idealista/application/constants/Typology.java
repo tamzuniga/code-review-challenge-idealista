@@ -1,4 +1,4 @@
-package com.idealista.domain;
+package com.idealista.application.constants;
 
 public enum Typology {
     FLAT,
